@@ -177,6 +177,20 @@ public class ControlCenter {
      */
     private void getUserStats(String line)
     {
+        String[] params = line.split(mDelimiter);
+
+        if(params.length != 2)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            int count = (int) Double.parseDouble(params[0]);
+            String request = params[1];
+            int result = mLibraryManager.userStatistics((count = count < 1 ? 10 : count), request);
+            printResult(result, " ");
+            mUserStats = false;
+        }
     }
 
     /**
@@ -184,6 +198,20 @@ public class ControlCenter {
      */
     private void getBookStats(String line)
     {
+        String[] params = line.split(mDelimiter);
+
+        if(params.length != 2)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            int count = (int) Double.parseDouble(params[0]);
+            String request = params[1];
+            int result = mLibraryManager.bookStatistics((count = count < 1 ? 10 : count), request);
+            printResult(result, " ");
+            mBookStats = false;
+        }
     }
 
     /**

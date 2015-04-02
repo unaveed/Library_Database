@@ -13,5 +13,7 @@ public interface LibraryInterface
     public abstract int checkin(String isbn, String username, int status);
     public abstract int addReview(String isbn, String username, String userID, String score, String reviewText);
     public abstract int userRecord(String username, String request);
+    public abstract int bookRecord(String isbn, String request);
     public abstract int userStatistics(int count, String request);
+    public abstract int bookStatistics(int count, String request);
 }

@@ -6,6 +6,7 @@ import java.util.Calendar;
 public class LibraryManager implements LibraryInterface {
 
     private Connection connection;
+    private final String LARGE_TAB = "\t\t\t\t\t\t\t\t\t\t\t\t\t";
 
     public LibraryManager()
     {
@@ -424,7 +425,7 @@ public class LibraryManager implements LibraryInterface {
 
                 ResultSet result = statement.executeQuery();
 
-                System.out.println("ISBN\t\t\tTitle\t\t\t\t\t\t\t\t\t\t\t\t\tCheck Out Date\t\tDate Returned");
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Out Date\t\tDate Returned");
                 while(result.next())
                     System.out.println(result.getString("isbn") + "\t" + result.getString("title") + "\t\t\t\t\t\t\t\t" +
                                        result.getString("date_checkedout") + "\t\t" + result.getString("date_returned"));
@@ -455,7 +456,7 @@ public class LibraryManager implements LibraryInterface {
                 statement.setString(1, username);
                 ResultSet result = statement.executeQuery();
 
-                System.out.println("ISBN\t\t\tTitle\t\t\t\t\t\t\t\t\t\t\t\t\tDate Requested");
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Requested");
                 while(result.next())
                     System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
                                         "\t\t\t\t\t\t\t\t" + result.getString("date_requested"));
@@ -483,7 +484,7 @@ public class LibraryManager implements LibraryInterface {
                 statement.setString(1, username);
                 ResultSet result = statement.executeQuery();
 
-                System.out.println("ISBN\t\t\tTitle\t\t\t\t\t\t\t\t\t\t\t\t\tScore\tReview");
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Score\tReview");
                 while(result.next())
                     System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
                             "\t\t\t\t\t\t\t" + result.getString("score") + "\t\t" + result.getString("rev_text"));
@@ -505,25 +506,128 @@ public class LibraryManager implements LibraryInterface {
     }
 
     @Override
+    public int bookRecord(String isbn, String request)
+    {
+        try
+        {
+            String query;
+            PreparedStatement statement;
+
+            if(request.equalsIgnoreCase("book data"))
+            {
+                query = "select * from book where b_isbn=?";
+
+                statement = connection.prepareStatement(query);
+                statement.setString(1, isbn);
+                ResultSet result = statement.executeQuery();
+
+                while(result.next())
+                    System.out.println(result.getString("b_isbn") + "\t" + result.getString("title") + "\t" +
+                            result.getString("author") + "\t" + result.getString("subject") + "\t" +
+                            result.getString("publisher") + "\t" + result.getString("pub_year") + "\t" +
+                            result.getString("format") + result.getString("summary"));
+
+                statement.close();
+                return 1;
+            }
+            else if(request.equalsIgnoreCase("book copies"))
+            {
+                query = "select isbn, book.title, book_no, location " +
+                        "from inventory inner join book on isbn=b_isbn " +
+                        "group by isbn, book_no";
+
+                statement = connection.prepareStatement(query);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Book Copy\t\tLocation");
+                while(result.next())
+                    System.out.println(result.getString("isbn") + "\t\t\t" + result.getString("title") +
+                            LARGE_TAB + result.getString("book_no") + "\t\t" + result.getString("location"));
+
+                result.close();
+                return 1;
+            }
+            else if(request.equalsIgnoreCase("book users"))
+            {
+                query = "select isbn, book.title, username, date_checkedout, date_returned " +
+                        "from checkout inner join book on isbn=b_isbn where isbn=?";
+
+                statement = connection.prepareStatement(query);
+                statement.setString(1, isbn);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "User\t\t\tCheckout Date\t\tReturn Date");
+                while(result.next())
+                    System.out.println(result.getString("isbn") + "\t\t\t" + result.getString("title") +
+                            LARGE_TAB + result.getString("username") + "\t\t\t" +
+                            result.getString("date_checkedout") + "\t\t" + result.getString("date_returned"));
+            }
+            else if(request.equalsIgnoreCase("book reviews"))
+            {
+                // TODO
+            }
+            else
+            {
+                // TODO
+            }
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            return -2;
+        }
+        return 0;
+    }
+
+    @Override
     public int userStatistics(int count, String request)
     {
         try
         {
+            String query;
+            PreparedStatement statement;
+
             if(request.equalsIgnoreCase("most checkedout"))
             {
+                query = "SELECT username, COUNT(*) as count " +
+                        "FROM checkout group by user_id " +
+                        "order by count desc limit ?";
 
+                statement = connection.prepareStatement(query);
+                statement.setInt(1, count);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("username\t\t\t\t\t\tNumber of books checked out");
+                while(result.next())
+                    System.out.println(result.getString("username") + "\t\t\t\t\t" + result.getString("count"));
+
+                result.close();
+                return 1;
             }
             else if(request.equalsIgnoreCase("most reviews"))
             {
+                query = "SELECT username, COUNT(*) as count " +
+                        "FROM reviews group by user_id " +
+                        "order by count desc limit ?;";
 
+                statement = connection.prepareStatement(query);
+                statement.setInt(1, count);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("username\tNumber of books reviewed");
+                while(result.next())
+                    System.out.println(result.getString("username") + "\t" + result.getString("count"));
+
+                result.close();
+                return 1;
             }
             else if(request.equalsIgnoreCase("most lost"))
             {
-
+                // TODO
             }
             else
             {
-
+                // TODO
             }
 
             return -1;
@@ -533,5 +637,71 @@ public class LibraryManager implements LibraryInterface {
             e.printStackTrace();
             return -2;
         }
+    }
+
+    @Override
+    public int bookStatistics(int count, String request)
+    {
+        try
+        {
+            String query = "";
+            PreparedStatement statement;
+
+            if(request.equalsIgnoreCase("most checkedout"))
+            {
+                query = "SELECT isbn, book.title, COUNT(*) as count " +
+                        "FROM checkout INNER JOIN book " +
+                        "ON isbn=b_isbn group by isbn " +
+                        "order by count desc limit ?;";
+
+                statement = connection.prepareStatement(query);
+                statement.setInt(1, count);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Number of times checked out");
+                while(result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t" + result.getString("count"));
+
+                result.close();
+                return 1;
+            }
+            else if(request.equalsIgnoreCase("most requested"))
+            {
+                query = "SELECT isbn, book.title, COUNT(*) as count " +
+                        "FROM requests INNER JOIN book " +
+                        "ON isbn=b_isbn group by isbn " +
+                        "order by count desc limit ?;";
+
+                statement = connection.prepareStatement(query);
+                statement.setInt(1, count);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Number of times requested");
+                while(result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t" + result.getString("count"));
+
+                result.close();
+                return 1;
+            }
+            else if(request.equalsIgnoreCase("most author"))
+            {
+                // TODO
+            }
+            else if(request.equalsIgnoreCase("most lost"))
+            {
+                // TODO
+            }
+            else
+            {
+                // TODO
+            }
+        }
+        catch (Exception e)
+        {
+
+        }
+        return 0;
     }
 }
