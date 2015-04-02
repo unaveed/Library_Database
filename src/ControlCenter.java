@@ -10,12 +10,34 @@ public class ControlCenter {
     private boolean mCheckIn;
     private boolean mReview;
     private boolean mBookInfo;
+    private boolean mUserRecord;
+    private boolean mBookRecord;
     private boolean mBookStats;
     private boolean mUserStats;
+
+    private String mDelimiter;
 
     LibraryManager mLibraryManager;
 
     public ControlCenter()
+        {
+            mRegister = false;
+            mNewBook = false;
+            mInventory = false;
+            mCheckout = false;
+            mCheckIn = false;
+            mReview = false;
+            mBookInfo = false;
+            mUserRecord = false;
+            mBookRecord = false;
+            mBookStats = false;
+            mUserStats = false;
+
+            mDelimiter = "/";
+            mLibraryManager = new LibraryManager();
+    }
+
+    public ControlCenter(String delimiter)
     {
         mRegister = false;
         mNewBook = false;
@@ -24,9 +46,12 @@ public class ControlCenter {
         mCheckIn = false;
         mReview = false;
         mBookInfo = false;
+        mUserRecord = false;
+        mBookRecord = false;
         mBookStats = false;
         mUserStats = false;
 
+        mDelimiter = delimiter;
         mLibraryManager = new LibraryManager();
     }
 
@@ -71,6 +96,16 @@ public class ControlCenter {
                 getBookInformation(line);
                 continue;
             }
+            else if(mUserRecord)
+            {
+                getUserRecord(line);
+                continue;
+            }
+            else if(mBookRecord)
+            {
+                getBookRecord(line);
+                continue;
+            }
             else if(mBookStats)
             {
                 getBookStats(line);
@@ -98,6 +133,10 @@ public class ControlCenter {
                 mBookInfo = true;
             else if(line.equalsIgnoreCase("book stats"))
                 mBookStats = true;
+            else if(line.equals("user record"))
+                mUserRecord = true;
+            else if(line.equalsIgnoreCase("book record"))
+                mBookRecord = true;
             else if(line.equalsIgnoreCase("user stats"))
                 mUserStats = true;
             else if(line.equalsIgnoreCase("help"))
@@ -105,7 +144,7 @@ public class ControlCenter {
             else if(line.equalsIgnoreCase("exit"))
                 break ;
             else
-                System.out.println("you said >> " + line);
+                System.out.println("Invalid command.Type help for a list of valid commands.");
         }
 
         scanner.close();
@@ -117,6 +156,19 @@ public class ControlCenter {
      */
     private void addBookInventory(String line)
     {
+        if(line.equals("") || line == null)
+        {
+            System.out.println("You must enter a valid ISBN number.");
+        }
+        else
+        {
+            int result = mLibraryManager.addInventory(line);
+
+            String noBook = "There is no book with that ISBN, " +
+                            "try a different ISBN or use addBook to add information about this book.";
+            printResult(result, noBook);
+            mInventory = false;
+        }
 
     }
 
@@ -146,11 +198,11 @@ public class ControlCenter {
      */
     private void addReview(String line)
     {
-        String[] params = line.split(",");
+        String[] params = line.split(mDelimiter);
 
         if(params.length != 5)
         {
-
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
         }
         else
         {
@@ -160,10 +212,18 @@ public class ControlCenter {
             String score = params[3];
             String reviewText = params[4];
 
-            int result = mLibraryManager.addReview(isbn, username, userID, score, reviewText);
-            String duplicate = "You have already left a review for this book.";
-            printResult(result, duplicate);
-            mReview = false;
+            double rating = Double.parseDouble(score);
+            if(rating >= 1 || rating <= 10)
+            {
+                int result = mLibraryManager.addReview(isbn, username, userID, score, reviewText);
+                String duplicate = "You have already left a review for this book.";
+                printResult(result, duplicate);
+                mReview = false;
+            }
+            else
+            {
+                System.out.println("Please enter a valid number between 1 and 10 for the rating");
+            }
         }
     }
 
@@ -172,7 +232,7 @@ public class ControlCenter {
      */
     private void checkBookOut(String line)
     {
-        String[] params = line.split(",");
+        String[] params = line.split(mDelimiter);
 
         if(params.length != 2)
         {
@@ -185,15 +245,37 @@ public class ControlCenter {
 
             int result = mLibraryManager.checkout(isbn, username);
 
-            String duplicate = "You are either on the wait list for this book or already have it checked out";
-            printResult(result, duplicate);
+            String duplicate = "You are either already on the wait list for " +
+                               "this book or currently have it checked out";
+            String noCopies = "There are no available copies for that book. You have been added to the waitlist.";
+
+            if(result == -3)
+                printResult(-2, duplicate);
+            else
+                printResult(result, duplicate);
+
             mCheckout = false;
         }
     }
 
     private void checkBookIn(String line)
     {
+        String[] params = line.split(mDelimiter);
 
+        if(params.length != 3)
+        {
+            System.out.println("Cannot complete query, you are missing one or more parameters.");
+        }
+        else
+        {
+            String isbn = params[0];
+            String username = params[1];
+            int status = Integer.parseInt(params[2]);
+
+            int result = mLibraryManager.checkin(isbn, username, status);
+
+            // TODO
+        }
     }
 
     /**
@@ -202,7 +284,7 @@ public class ControlCenter {
      */
     private void addNewBook(String line)
     {
-        String[] params = line.split(",");
+        String[] params = line.split(mDelimiter);
 
         if(params.length != 8)
         {
@@ -228,12 +310,44 @@ public class ControlCenter {
         }
     }
 
+    private void getUserRecord(String line)
+    {
+        String[] params = line.split(mDelimiter);
+
+        if(params.length < 2)
+        {
+            System.out.println("You have not provided the correct parameters, please try again.");
+        }
+        else
+        {
+            String username = params[0];
+            String request = params[1];
+
+            int result = mLibraryManager.userRecord(username, request);
+            printResult(result, "");
+            mUserRecord = false;
+        }
+    }
+
+    private void getBookRecord(String line)
+    {
+        String[] params = line.split(mDelimiter);
+
+        if(params.length < 2)
+        {
+            System.out.println("You have not provided the correct parameters, please try again.");
+        }
+        else
+        {
+        }
+    }
+
     /**
      * TODO: Implement
      */
     private void registerUser(String line)
     {
-        String[] params = line.split(",");
+        String[] params = line.split(mDelimiter);
 
         if(params.length != 5)
         {
@@ -246,6 +360,9 @@ public class ControlCenter {
             String name = params[2];
             String phone = params[3];
             String email = params[4];
+
+            if(phone.length() > 1)
+                phone = phone.replaceAll("([-()+])+","");
 
             int result = mLibraryManager.addUser(username, address, name, phone, email);
 
@@ -265,19 +382,22 @@ public class ControlCenter {
         else if (result == -1)
             System.out.println(duplicate);
         else
-        {
-            // some other error
-        }
+            System.out.println("Your query could not be completed.");
     }
 
-    private static String displayHelp()
+    private String displayHelp()
     {
         String helpOptions = "command\t\t\tParameters, (r) indicates required field, " +
-                "blank space between comma if optional field not needed.\n" +
-        "register\t\tusername(r),address(r),full name(r),phone number,e-mail address\n" +
-        "checkout\t\tisbn(r),username(r)" +
-        "checkin\t\tisbn(r),username(r)" +
-        "exit\t\t\tLog out of the system";
+                "separate parameters with a " + mDelimiter + "character, leave blank " +
+                "space between " + mDelimiter + "s for no value \n" +
+                "register\t\tusername(r),address(r),full name(r),phone number,e-mail address\n" +
+                "add book\t\tisbn(r),title,author,subject,publisher,publish year,format,summary\n" +
+                "inventory\t\tisbn(r)\n" +
+                "checkout\t\tisbn(r),username(r)\n" +
+                "checkin\t\t\tisbn(r),username(r),status(-1 for lost, 1 for returning)\n" +
+                "user record\t\tusername(r),request(r) valid requests: personal data,checkedout books," +
+                "lost books,requested books,reviewed books\n" +
+                "exit\t\t\tLog out of the system\n";
 
         return helpOptions;
     }

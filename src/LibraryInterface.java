@@ -7,9 +7,11 @@ public interface LibraryInterface
                                  String subject, String publisher,
                                  String publishYear, String format,
                                  String summary);
-    public abstract int addUser(String userName, String address, String name, String phone, String email);
-    public abstract int addToInventory(String isbn, String quantity);
+    public abstract int addInventory(String isbn);
+    public abstract int addUser(String username, String address, String name, String phone, String email);
     public abstract int checkout(String isbn, String username);
-    public abstract int checkin(String isbn, String username);
+    public abstract int checkin(String isbn, String username, int status);
     public abstract int addReview(String isbn, String username, String userID, String score, String reviewText);
+    public abstract int userRecord(String username, String request);
+    public abstract int userStatistics(int count, String request);
 }
