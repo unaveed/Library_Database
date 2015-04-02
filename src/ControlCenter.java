@@ -14,6 +14,8 @@ public class ControlCenter {
     private boolean mBookRecord;
     private boolean mBookStats;
     private boolean mUserStats;
+    private boolean mLateBookList;
+    private boolean mBrowseBooks;
 
     private String mDelimiter;
 
@@ -32,6 +34,8 @@ public class ControlCenter {
             mBookRecord = false;
             mBookStats = false;
             mUserStats = false;
+            mLateBookList = false;
+            mBrowseBooks = false;
 
             mDelimiter = "/";
             mLibraryManager = new LibraryManager();
@@ -50,6 +54,8 @@ public class ControlCenter {
         mBookRecord = false;
         mBookStats = false;
         mUserStats = false;
+        mLateBookList = false;
+        mBrowseBooks = false;
 
         mDelimiter = delimiter;
         mLibraryManager = new LibraryManager();
@@ -61,7 +67,12 @@ public class ControlCenter {
         {
             String line = scanner.nextLine();
 
-            if(mRegister)
+            if(mBrowseBooks)
+            {
+                browseBooks(line);
+                continue;
+            }
+            else if(mRegister)
             {
                 registerUser(line);
                 continue;
@@ -84,6 +95,11 @@ public class ControlCenter {
             else if(mCheckIn)
             {
                 checkBookIn(line);
+                continue;
+            }
+            else if(mLateBookList)
+            {
+                lateBookList(line);
                 continue;
             }
             else if(mReview)
@@ -117,7 +133,9 @@ public class ControlCenter {
                 continue;
             }
 
-            if(line.equalsIgnoreCase("register"))
+            if(line.equalsIgnoreCase("browse books"))
+                mBrowseBooks = true;
+            else if(line.equalsIgnoreCase("register"))
                 mRegister = true;
             else if(line.equalsIgnoreCase("add book"))
                 mNewBook = true;
@@ -127,6 +145,8 @@ public class ControlCenter {
                 mCheckout = true;
             else if(line.equalsIgnoreCase("checkin"))
                 mCheckIn = true;
+            else if(line.equalsIgnoreCase("late books"))
+                mLateBookList = true;
             else if(line.equalsIgnoreCase("review"))
                 mReview = true;
             else if(line.equalsIgnoreCase("book info"))
@@ -219,6 +239,17 @@ public class ControlCenter {
      */
     private void getBookInformation(String line)
     {
+    }
+
+    /**
+     * TODO: Implement
+     */
+    private void lateBookList(String line)
+    {
+        java.sql.Date date = java.sql.Date.valueOf(line);
+        int result = mLibraryManager.lateBooks(date);
+        printResult(result," ");
+        mLateBookList = false;
     }
 
     /**
@@ -373,6 +404,47 @@ public class ControlCenter {
     /**
      * TODO: Implement
      */
+    private void browseBooks(String line)
+    {
+        String[] params = line.split(mDelimiter);
+
+        if(params.length == 6)
+        {
+            String authors = params[0];
+            String publisher = params[1];
+            String titleWords = params[2];
+            String subject = params[3];
+            String sort = params[4];
+            String status = params[5];
+
+            if(sort.length() == 0)
+            {
+                System.out.println("You must specify how the results are sorted");
+            }
+            else if(status.length() == 0)
+            {
+                System.out.println("You must specify whether you want all books or just available ones");
+            }
+            else
+            {
+                authors = authors.length() > 0 ? '%' + authors + '%' : authors;
+                publisher = publisher.length() > 0 ? '%' + publisher + '%' : publisher;
+                titleWords = titleWords.length() > 0 ? '%' + titleWords + '%' : titleWords;
+                subject = subject.length() > 0 ? '%' + subject + '%' : subject;
+
+                int result = mLibraryManager.browseLibrary(authors, publisher, titleWords, subject, sort,status);
+            }
+        }
+        else
+        {
+
+        }
+
+    }
+
+    /**
+     * TODO: Write comments
+     */
     private void registerUser(String line)
     {
         String[] params = line.split(mDelimiter);
@@ -423,6 +495,7 @@ public class ControlCenter {
                 "inventory\t\tisbn(r)\n" +
                 "checkout\t\tisbn(r),username(r)\n" +
                 "checkin\t\t\tisbn(r),username(r),status(-1 for lost, 1 for returning)\n" +
+                "late books\t\t\tdate(r) in the format of YYYY-MM-DD\n" +
                 "user record\t\tusername(r),request(r) valid requests: personal data,checkedout books," +
                 "lost books,requested books,reviewed books\n" +
                 "exit\t\t\tLog out of the system\n";

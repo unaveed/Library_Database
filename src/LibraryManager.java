@@ -150,6 +150,48 @@ public class LibraryManager implements LibraryInterface {
     }
 
     @Override
+    public int browseLibrary(String authors, String publisher, String titleWords,
+                             String subject, String sort, String status)
+    {
+        try
+        {
+            String query;
+            PreparedStatement statement;
+
+            if(status.equalsIgnoreCase("all"))
+            {
+                query = "select i.isbn, b.title,b.author,b.publisher,b.subject from inventory i " +
+                        "inner join book b " +
+                        "on i.isbn = b.b_isbn " +
+                        "where (author like ? and title like ? and publisher like ? and subject like ?) " +
+                        "or (author like ? and title like ? or publisher like ? and subject like ?) " +
+                        "or ((author like ? or title like ?) and (publisher like ? or subject like ?)) " +
+                        "or (author like ? or title like ? or publisher like ? or subject like ?)";
+
+                statement = connection.prepareStatement(query);
+                for (int i = 1; i < 17; i += 4)
+                {
+                    statement.setString(i, authors);
+                    statement.setString(i, titleWords);
+                    statement.setString(i, publisher);
+                    statement.setString(i, subject);
+                }
+            }
+            else
+            {
+
+            }
+
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+            return -2;
+        }
+        return 0;
+    }
+
+    @Override
     public int addBook(String isbn, String title, String author,
                         String subject, String publisher,
                         String publishYear, String format, String summary)
@@ -503,6 +545,37 @@ public class LibraryManager implements LibraryInterface {
             System.out.println("You entered an invalid command.");
         }
         return 0;
+    }
+
+    @Override
+    public int lateBooks(Date date)
+    {
+        try
+        {
+            String query = "SELECT b.title, c.due_date, u.full_name, u.phone_no, u.email FROM checkout c " +
+                    "join book b ON c.isbn = b.b_isbn " +
+                    "join user u ON c.username = u.username " +
+                    "where c.due_date <= ? AND date_returned IS NULL;";
+
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setDate(1, date);
+            ResultSet result = statement.executeQuery();
+
+            while(result.next())
+            {
+                System.out.println(result.getString("title") + "\t\t" + result.getString("due_date") +
+                        "\t\t" + result.getString("full_name") + "\t\t" + result.getString("phone_no") +
+                        "\t\t" + result.getString("email"));
+            }
+
+            result.close();
+            return 1;
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+            return -2;
+        }
     }
 
     @Override
