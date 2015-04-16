@@ -67,6 +67,80 @@ public class LibraryManager implements LibraryInterface {
         }
     }
 
+    private boolean isFirstOnWaitlist(String username, String isbn)
+    {
+        try
+        {
+            String query = "select username from requests " +
+                    "where isbn=? and date_fulfilled is null " +
+                    "order by date_requested asc limit 1";
+
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setString(1, isbn);
+            ResultSet result = statement.executeQuery();
+
+            result.next();
+            String longestWait = result.getString("username");
+
+            result.close();
+            return username.equalsIgnoreCase(longestWait);
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private int executeCheckout(String isbn, int bookNumber, String username, Date date)
+    {
+        try
+        {
+            String query = "insert into checkout(isbn,book_no,username,user_id,date_checkedout,due_date) " +
+                    "values(?,?,?,(select user_id from user where username= ?),?,?)";
+            PreparedStatement statement = connection.prepareStatement(query);
+
+            statement.setString(1, isbn);
+            statement.setInt(2, bookNumber);
+            statement.setString(3, username);
+            statement.setString(4, username);
+            statement.setDate(5, date);
+            statement.setDate(6, getCheckoutDate());
+            statement.executeUpdate();
+
+            statement.close();
+            return 1;
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            return -2;
+        }
+    }
+
+    private int removeFromWaitList(String username, String isbn)
+    {
+        try
+        {
+            String removeQuery = "update requests set date_fulfilled=? where username=? and isbn=?";
+
+            PreparedStatement statement = connection.prepareStatement(removeQuery);
+            statement.setDate(1, getCurrentDate());
+            statement.setString(2, username);
+            statement.setString(3, isbn);
+
+            statement.executeUpdate();
+            statement.close();
+
+            return 1;
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            return -2;
+        }
+    }
+
     private int addRequest(String isbn, String username, Date date)
     {
         try
@@ -164,9 +238,7 @@ public class LibraryManager implements LibraryInterface {
                         "inner join book b " +
                         "on i.isbn = b.b_isbn " +
                         "where (author like ? and title like ? and publisher like ? and subject like ?) " +
-                        "or (author like ? and title like ? or publisher like ? and subject like ?) " +
-                        "or ((author like ? or title like ?) and (publisher like ? or subject like ?)) " +
-                        "or (author like ? or title like ? or publisher like ? or subject like ?)";
+                        "order by pub_year";
 
                 statement = connection.prepareStatement(query);
                 for (int i = 1; i < 17; i += 4)
@@ -256,13 +328,14 @@ public class LibraryManager implements LibraryInterface {
             selectResult.close();
 
             String query = "insert into inventory(isbn,book_no,availability) values " +
-                           "((select b_isbn from book where b_isbn = ?),?,?);";
+                           "((select b_isbn from book where b_isbn = ?),?,?,?);";
 
             PreparedStatement insert = connection.prepareStatement(query);
 
             insert.setString(1, isbn);
             insert.setInt(2, ++book_no);
             insert.setInt(3, 1);
+            insert.setString(4, "back log");
 
             int result = insert.executeUpdate();
             insert.close();
@@ -326,38 +399,38 @@ public class LibraryManager implements LibraryInterface {
             Date date = getCurrentDate();
             int bookNumber = getAvailableBook(isbn);
 
-            if(bookNumber == -3)
-                return addRequest(isbn,username,date);
-
-            // Make sure user doesn't already have the book
-            String queryUserHasBook = "select * from checkout where isbn=? and username=? and date_returned=?";
+            // Prevent user from checking out this book if they already have it
+            String queryUserHasBook = "select * from checkout where isbn=? and username=? and date_returned is null";
             PreparedStatement statement = connection.prepareStatement(queryUserHasBook);
 
             statement.setString(1, isbn);
             statement.setString(2,username);
-            statement.setString(3, "");
             ResultSet userHasBookResult = statement.executeQuery();
 
             if(userHasBookResult.isBeforeFirst())
                 return -1;
-
-            String query = "insert into checkout(isbn,book_no,username,user_id,date_checkedout,due_date,date_returned) " +
-                           "values(?,?,?,(select user_id from user where username= ?),?,?)";
-            statement = connection.prepareStatement(query);
-
-            statement.setString(1, isbn);
-            statement.setInt(2, bookNumber);
-            statement.setString(3, username);
-            statement.setString(4, username);
-            statement.setDate(5, date);
-            statement.setDate(6, getCheckoutDate());
-
-            int result = statement.executeUpdate();
             statement.close();
 
-            updateInventory(isbn,bookNumber,0);
-
-            return result;
+            // Indicates there are no copies available
+            if(bookNumber == -3)
+            {
+                // Give user the book since they are first on the list
+                if(isFirstOnWaitlist(username,isbn))
+                {
+                    removeFromWaitList(username, isbn);
+                    return executeCheckout(isbn, bookNumber, username, date);
+                }
+                // Add user to waitlist since others are before them
+                else
+                {
+                    return addRequest(isbn, username, date);
+                }
+            }
+            // Give the user the book since there is a copy available
+            else
+            {
+                return executeCheckout(isbn, bookNumber, username, date);
+            }
         }
         catch (Exception e)
         {
@@ -371,7 +444,43 @@ public class LibraryManager implements LibraryInterface {
     {
         try
         {
-            return -1;
+            String queryBookNumber = "select book_no from checkout " +
+                                     "where username=? and isbn=? and date_returned is null";
+
+            PreparedStatement statement = connection.prepareStatement(queryBookNumber);
+            statement.setString(1, username);
+            statement.setString(2, isbn);
+            ResultSet resultSet = statement.executeQuery();
+
+            resultSet.next();
+            int bookNumber = resultSet.findColumn("book_no");
+
+            String query = "update checkout set date_returned=? " +
+                           "where username=? and isbn=? and date_returned is null";
+
+            statement = connection.prepareStatement(query);
+            statement.setDate(1, getCurrentDate());
+            statement.setString(2, username);
+            statement.setString(3, isbn);
+            int result = statement.executeUpdate();
+
+            String inventory = "update inventory set availability=? where isbn=? and book_no=?";
+            statement = connection.prepareStatement(inventory);
+            statement.setInt(1, status);
+            statement.setString(2, isbn);
+            statement.setInt(3, bookNumber);
+            int inventoryResult = statement.executeUpdate();
+
+            String waitlist = "select username from requests where isbn=?";
+            statement = connection.prepareStatement(waitlist);
+            statement.setString(1, isbn);
+            ResultSet waitlistResult = statement.executeQuery();
+
+            System.out.println("Users on waitlist for this book");
+            while(waitlistResult.next())
+                System.out.println(waitlistResult.getString(username));
+
+            return (result & inventoryResult) == 1 ? result : -2;
         }
         catch(Exception e)
         {
@@ -380,19 +489,19 @@ public class LibraryManager implements LibraryInterface {
     }
 
     @Override
-    public int addReview(String isbn, String username, String userID, String score, String reviewText)
+    public int addReview(String isbn, String username, String score, String reviewText)
     {
         try
         {
             String query = "insert into reviews(isbn,username,user_id,score,rev_text) " +
                     "values((select b_isbn from book where b_isbn= ?)," +
                     "(select username from user where username= ?)," +
-                    "(select user_id from user where user_id= ?),?,?)";
+                    "(select user_id from user where username= ?),?,?)";
 
             PreparedStatement insert = connection.prepareStatement(query);
             insert.setString(1, isbn);
             insert.setString(2, username);
-            insert.setString(3, userID);
+            insert.setString(3, username);
             insert.setString(4, score);
             insert.setString(5, reviewText);
 
@@ -696,14 +805,23 @@ public class LibraryManager implements LibraryInterface {
             }
             else if(request.equalsIgnoreCase("most lost"))
             {
-                // TODO
+                query = "select username, count(*) as count from inventory i " +
+                        "inner join checkout c on i.isbn = c.isbn and i.book_no and c.book_no " +
+                        "where availability=-1 group by username order by count desc limit ?";
+                statement = connection.prepareStatement(query);
+                statement.setInt(1, count);
+                ResultSet result = statement.executeQuery();
+
+                while(result.next())
+                    System.out.println(result.getString("username") + "\t\t\t" + result.getString("count"));
+
+                statement.close();
+                return 1;
             }
             else
             {
-                // TODO
+                return -1;
             }
-
-            return -1;
         }
         catch (Exception e)
         {
@@ -760,15 +878,42 @@ public class LibraryManager implements LibraryInterface {
             }
             else if(request.equalsIgnoreCase("most author"))
             {
-                // TODO
+                query = "select b.author, count(*) as count " +
+                        "from checkout inner join book b on isbn = b.b_isbn " +
+                        "group by author order by count desc limit ?";
+                statement = connection.prepareStatement(query);
+                statement.setInt(1, count);
+                ResultSet result = statement.executeQuery();
+
+                while(result.next())
+                    System.out.println(result.getString("author") + "\t\t\t" + result.getString("count"));
+
+                result.close();
+                return 1;
             }
             else if(request.equalsIgnoreCase("most lost"))
             {
-                // TODO
+                query = "select isbn,b.title,count(*) as count from inventory " +
+                        "inner join book b " +
+                        "on isbn = b.b_isbn " +
+                        "where availability=-1 " +
+                        "group by isbn " +
+                        "order by count desc limit ?";
+
+                statement = connection.prepareStatement(query);
+                statement.setInt(1, count);
+                ResultSet result = statement.executeQuery();
+
+                while(result.next())
+                    System.out.println(result.getString("isbn") + "\t\t\t" + result.getString("title") +
+                    "\t\t\t" + result.getString("count"));
+
+                statement.close();
+                return 1;
             }
             else
             {
-                // TODO
+                return -2;
             }
         }
         catch (Exception e)
@@ -776,5 +921,417 @@ public class LibraryManager implements LibraryInterface {
 
         }
         return 0;
+    }
+
+    public int browseByAuthor(String author, String request, String sort)
+    {
+        if(request.equalsIgnoreCase("all"))
+        {
+            try
+            {
+                String query = "SELECT * FROM cs5530db26.book " +
+                        "where author LIKE ? sort by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, author);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+        else
+        {
+            try
+            {
+                String query = "select isbn,b.title,author from inventory " +
+                                "inner join book b " +
+                                "on isbn = b.b_isbn " +
+                                "where availability=? and b.author like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setInt(1, 1);
+                statement.setString(2, author);
+
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+    }
+
+    public int browseBySubject(String subject, String request, String sort)
+    {
+        if(request.equalsIgnoreCase("all"))
+        {
+            try
+            {
+                String query = "SELECT * FROM cs5530db26.book " +
+                        "where subject LIKE ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, subject);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+        else
+        {
+            try
+            {
+                String query = "select isbn,b.title,author from inventory " +
+                        "inner join book b " +
+                        "on isbn = b.b_isbn " +
+                        "where availability=? and b.subject like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setInt(1, 1);
+                statement.setString(2, subject);
+
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+    }
+
+    public int browseByPublisher(String publisher, String request, String sort)
+    {
+        if(request.equalsIgnoreCase("all"))
+        {
+            try
+            {
+                String query = "SELECT * FROM cs5530db26.book " +
+                        "where publisher LIKE ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, publisher);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+        else
+        {
+            try
+            {
+                String query = "select isbn,b.title,author from inventory " +
+                        "inner join book b " +
+                        "on isbn = b.b_isbn " +
+                        "where availability=? and b.publisher like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setInt(1, 1);
+                statement.setString(2, publisher);
+
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+    }
+
+    public int browseByTitle(String title, String request, String sort)
+    {
+        if(request.equalsIgnoreCase("all"))
+        {
+            try
+            {
+                String query = "SELECT * FROM cs5530db26.book " +
+                        "where title LIKE ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, title);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+        else
+        {
+            try
+            {
+                String query = "select isbn,b.title,author from inventory " +
+                        "inner join book b " +
+                        "on isbn = b.b_isbn " +
+                        "where availability=? and b.title like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setInt(1, 1);
+                statement.setString(2, title);
+
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+    }
+
+    public Result browse(String title, String author, String publisher, String subject, String sort)
+    {
+        try
+        {
+            String query = "select * from book where title LIKE ? or author LIKE ? OR " +
+                           "publisher LIKE ? OR subject LIKE ? order by ?";
+            return null;
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
+    }
+
+    public int browseByTitleAndAuthor(String title, String author, String request, String sort)
+    {
+        if(request.equalsIgnoreCase("all"))
+        {
+            try
+            {
+                String query = "SELECT * FROM cs5530db26.book " +
+                        "where title LIKE ? and author like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, title);
+                statement.setString(2, author);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+        else
+        {
+            try
+            {
+                String query = "select isbn,b.title,author from inventory " +
+                        "inner join book b " +
+                        "on isbn = b.b_isbn " +
+                        "where availability=? and b.title like ? and b.author like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setInt(1, 1);
+                statement.setString(2, title);
+                statement.setString(3, author);
+
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+    }
+
+    public int browseByPublisherAndAuthor(String publisher, String author, String request, String sort)
+    {
+        if(request.equalsIgnoreCase("all"))
+        {
+            try
+            {
+                String query = "SELECT * FROM cs5530db26.book " +
+                        "where publisher LIKE ? and author like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, publisher);
+                statement.setString(2, author);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+        else
+        {
+            try
+            {
+                String query = "select isbn,b.title,author from inventory " +
+                        "inner join book b " +
+                        "on isbn = b.b_isbn " +
+                        "where availability=? and b.publisher like ? and b.author like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setInt(1, 1);
+                statement.setString(2, publisher);
+                statement.setString(3, author);
+
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+    }
+
+    public int browseByPublisherAndTitle(String publisher, String title, String request, String sort)
+    {
+        if(request.equalsIgnoreCase("all"))
+        {
+            try
+            {
+                String query = "SELECT * FROM cs5530db26.book " +
+                        "where publisher LIKE ? and title like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, publisher);
+                statement.setString(2, title);
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
+        else
+        {
+            try
+            {
+                String query = "select isbn,b.title,author from inventory " +
+                        "inner join book b " +
+                        "on isbn = b.b_isbn " +
+                        "where availability=? and b.publisher like ? and b.title like ? order by pub_year";
+
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setInt(1, 1);
+                statement.setString(2, publisher);
+                statement.setString(3, title);
+
+                ResultSet result = statement.executeQuery();
+
+                System.out.println("ISBN\t\t\tTitle" + LARGE_TAB + "Author");
+                while (result.next())
+                    System.out.println(result.getString("isbn") + "\t" + result.getString("title") +
+                            "\t\t\t\t\t\t\t\t" + result.getString("author"));
+
+                statement.close();
+                return 1;
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+                return -2;
+            }
+        }
     }
 }

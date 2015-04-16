@@ -3,172 +3,366 @@ import java.util.Scanner;
 public class ControlCenter {
 
     // Flags that control flow based on user input
-    private boolean mRegister;
-    private boolean mNewBook;
-    private boolean mInventory;
-    private boolean mCheckout;
-    private boolean mCheckIn;
-    private boolean mReview;
-    private boolean mBookInfo;
-    private boolean mUserRecord;
-    private boolean mBookRecord;
-    private boolean mBookStats;
-    private boolean mUserStats;
-    private boolean mLateBookList;
-    private boolean mBrowseBooks;
+    private boolean _register;
+    private boolean _newBook;
+    private boolean _inventory;
+    private boolean _checkout;
+    private boolean _checkIn;
+    private boolean _waitList;
+    private boolean _review;
+    private boolean _bookInfo;
+    private boolean _userRecord;
+    private boolean _bookRecord;
+    private boolean _bookStats;
+    private boolean _userStats;
+    private boolean _lateBookList;
+    private boolean _browse;
+    private boolean _browseAuthor;
+    private boolean _browseSubject;
+    private boolean _browseTitle;
+    private boolean _browsePublisher;
+    private boolean _browsePubAuthor;
+    private boolean _browseTitleAuthor;
+    private boolean _browsePubTitle;
 
-    private String mDelimiter;
+    private String _delimiter;
 
-    LibraryManager mLibraryManager;
+    LibraryManager _libraryManager;
 
     public ControlCenter()
         {
-            mRegister = false;
-            mNewBook = false;
-            mInventory = false;
-            mCheckout = false;
-            mCheckIn = false;
-            mReview = false;
-            mBookInfo = false;
-            mUserRecord = false;
-            mBookRecord = false;
-            mBookStats = false;
-            mUserStats = false;
-            mLateBookList = false;
-            mBrowseBooks = false;
+            _register = false;
+            _newBook = false;
+            _inventory = false;
+            _checkout = false;
+            _checkIn = false;
+            _waitList = false;
+            _review = false;
+            _bookInfo = false;
+            _userRecord = false;
+            _bookRecord = false;
+            _bookStats = false;
+            _userStats = false;
+            _lateBookList = false;
+            _browse = false;
+            _browseAuthor = false;
+            _browseSubject = false;
+            _browseTitle = false;
+            _browsePublisher = false;
+            _browsePubAuthor = false;
+            _browseTitleAuthor = false;
+            _browsePubTitle = false;
 
-            mDelimiter = "/";
-            mLibraryManager = new LibraryManager();
-    }
-
-    public ControlCenter(String delimiter)
-    {
-        mRegister = false;
-        mNewBook = false;
-        mInventory = false;
-        mCheckout = false;
-        mCheckIn = false;
-        mReview = false;
-        mBookInfo = false;
-        mUserRecord = false;
-        mBookRecord = false;
-        mBookStats = false;
-        mUserStats = false;
-        mLateBookList = false;
-        mBrowseBooks = false;
-
-        mDelimiter = delimiter;
-        mLibraryManager = new LibraryManager();
+            _delimiter = Constant.DELIMITER;
+            _libraryManager = new LibraryManager();
     }
 
     private void parseInput(Scanner scanner)
     {
         while(scanner.hasNext())
         {
-            String line = scanner.nextLine();
+            String input = scanner.nextLine();
+            Library library;
+            Book book;
+            User user;
 
-            if(mBrowseBooks)
+            if(_browse)
             {
-                browseBooks(line);
+                library = new Library(input);
+                System.out.println(library.browse().toString());
+                _browse = false;
                 continue;
             }
-            else if(mRegister)
+            else if(_register)
             {
-                registerUser(line);
+                user = new User(input);
+                System.out.println(user.register().toString());
+                _register = false;
                 continue;
             }
-            else if (mNewBook)
+            else if (_newBook)
             {
-                addNewBook(line);
+                book = new Book(input);
+                System.out.println(book.addBook().toString());
+                _newBook = false;
                 continue;
             }
-            else if (mInventory)
+            else if (_inventory)
             {
-                addBookInventory(line);
+                library = new Library(input);
+                System.out.println(library.addInventory().toString());
+                _inventory = false;
                 continue;
             }
-            else if(mCheckout)
+            else if(_checkout)
             {
-                checkBookOut(line);
+                library = new Library(input);
+                System.out.println(library.checkOut().toString());
+                _checkout = false;
                 continue;
             }
-            else if(mCheckIn)
+            else if(_checkIn)
             {
-                checkBookIn(line);
+                library = new Library(input);
+                System.out.println(library.checkIn().toString());
+                _checkIn = false;
                 continue;
             }
-            else if(mLateBookList)
+            else if(_waitList)
             {
-                lateBookList(line);
+                library = new Library(input);
+                System.out.println(library.joinWaitList().toString());
+                _waitList = false;
                 continue;
             }
-            else if(mReview)
+            else if(_lateBookList)
             {
-                addReview(line);
+                library = new Library(input);
+                System.out.println(library.getLateBookList().toString());
+                _lateBookList = false;
                 continue;
             }
-            else if(mBookInfo)
+            else if(_review)
             {
-                getBookInformation(line);
+                book = new Book(input);
+                System.out.println(book.addReview().toString());
+                _review = false;
                 continue;
             }
-            else if(mUserRecord)
+            else if(_bookInfo)
             {
-                getUserRecord(line);
+                getBookInformation(input);
                 continue;
             }
-            else if(mBookRecord)
+            else if(_userRecord)
             {
-                getBookRecord(line);
+                getUserRecord(input);
                 continue;
             }
-            else if(mBookStats)
+            else if(_bookRecord)
             {
-                getBookStats(line);
+                getBookRecord(input);
                 continue;
             }
-            else if(mUserStats)
+            else if(_bookStats)
             {
-                getUserStats(line);
+                getBookStats(input);
+                continue;
+            }
+            else if(_userStats)
+            {
+                getUserStats(input);
                 continue;
             }
 
-            if(line.equalsIgnoreCase("browse books"))
-                mBrowseBooks = true;
-            else if(line.equalsIgnoreCase("register"))
-                mRegister = true;
-            else if(line.equalsIgnoreCase("add book"))
-                mNewBook = true;
-            else if(line.equalsIgnoreCase("inventory"))
-                mInventory = true;
-            else if(line.equalsIgnoreCase("checkout"))
-                mCheckout = true;
-            else if(line.equalsIgnoreCase("checkin"))
-                mCheckIn = true;
-            else if(line.equalsIgnoreCase("late books"))
-                mLateBookList = true;
-            else if(line.equalsIgnoreCase("review"))
-                mReview = true;
-            else if(line.equalsIgnoreCase("book info"))
-                mBookInfo = true;
-            else if(line.equalsIgnoreCase("book stats"))
-                mBookStats = true;
-            else if(line.equals("user record"))
-                mUserRecord = true;
-            else if(line.equalsIgnoreCase("book record"))
-                mBookRecord = true;
-            else if(line.equalsIgnoreCase("user stats"))
-                mUserStats = true;
-            else if(line.equalsIgnoreCase("help"))
+
+            if(input.equalsIgnoreCase("browse"))
+                _browse = true;
+            else if(input.equalsIgnoreCase("register"))
+                _register = true;
+            else if(input.equalsIgnoreCase("add book"))
+                _newBook = true;
+            else if(input.equalsIgnoreCase("add inventory"))
+                _inventory = true;
+            else if(input.equalsIgnoreCase("checkout"))
+                _checkout = true;
+            else if(input.equalsIgnoreCase("checkin"))
+                _checkIn = true;
+            else if(input.equalsIgnoreCase("waitlist"))
+                _waitList = true;
+            else if(input.equalsIgnoreCase("late books"))
+                _lateBookList = true;
+            else if(input.equalsIgnoreCase("review"))
+                _review = true;
+            else if(input.equalsIgnoreCase("book info"))
+                _bookInfo = true;
+            else if(input.equalsIgnoreCase("book stats"))
+                _bookStats = true;
+            else if(input.equals("user record"))
+                _userRecord = true;
+            else if(input.equalsIgnoreCase("book record"))
+                _bookRecord = true;
+            else if(input.equalsIgnoreCase("user stats"))
+                _userStats = true;
+            else if(input.equalsIgnoreCase("help"))
                 System.out.println(displayHelp());
-            else if(line.equalsIgnoreCase("exit"))
+            else if(input.equalsIgnoreCase("exit"))
                 break ;
             else
-                System.out.println("Invalid command.Type help for a list of valid commands.");
+                System.out.println("Invalid command.");
         }
 
         scanner.close();
-        mLibraryManager.close();
+        _libraryManager.close();
+    }
+
+    private void browseByPublisherAuthor(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 4)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String publisher = params[0];
+            String author = params[1];
+            String request = params[2];
+            String sort = params[3];
+            publisher = '%' + publisher + '%';
+            author = '%' + author + '%';
+
+            int result = _libraryManager.browseByPublisherAndAuthor(publisher, author, request, sort);
+            printResult(result, " ");
+            _browsePubAuthor = false;
+        }
+    }
+
+    private void browseByPublisherTitle(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 4)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String publisher = params[0];
+            String title = params[1];
+            String request = params[2];
+            String sort = params[3];
+            publisher = '%' + publisher + '%';
+            title = '%' + title + '%';
+
+            int result = _libraryManager.browseByPublisherAndTitle(publisher, title, request, sort);
+            printResult(result, " ");
+            _browsePubTitle = false;
+        }
+    }
+
+    private void browseByTitleAuthor(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 4)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String title = params[0];
+            String author = params[1];
+            String request = params[2];
+            String sort = params[3];
+            title = '%' + title + '%';
+            author = '%' + author + '%';
+
+            int result = _libraryManager.browseByPublisherAndAuthor(title, author, request, sort);
+            printResult(result, " ");
+            _browseTitleAuthor = false;
+        }
+    }
+
+    private void browseBySubject(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 3)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String subject = params[0];
+            String request = params[1];
+            String sort = params[2];
+            subject = '%' + subject + '%';
+            int result = _libraryManager.browseBySubject(subject, request, sort);
+            printResult(result, " ");
+            _browseAuthor = false;
+        }
+    }
+
+    private void browseByAuthor(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 3)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String author = params[0];
+            String request = params[1];
+            String sort = params[2];
+            author = '%' + author + '%';
+            int result = _libraryManager.browseByAuthor(author, request, sort);
+            printResult(result, " ");
+            _browseAuthor = false;
+        }
+    }
+
+    private void browseByTitle(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 3)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String title = params[0];
+            String request = params[1];
+            String sort = params[2];
+            title = '%' + title + '%';
+            int result = _libraryManager.browseByTitle(title, request, sort);
+            printResult(result, " ");
+            _browseTitle = false;
+        }
+    }
+
+    private void browseByPublisher(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 3)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String publisher = params[0];
+            String request = params[1];
+            String sort = params[2];
+            publisher = '%' + publisher + '%';
+            int result = _libraryManager.browseByPublisher(publisher, request, sort);
+            printResult(result, " ");
+            _browsePublisher = false;
+        }
+    }
+
+    private void setBrowseSubject(String line)
+    {
+        String[] params = line.split(_delimiter);
+
+        if(params.length != 3)
+        {
+            System.out.println("Cannot complete query, you have an incorrect number of parameters.");
+        }
+        else
+        {
+            String subject = params[0];
+            String request = params[1];
+            String sort = params[2];
+            subject = '%' + subject + '%';
+            int result = _libraryManager.browseBySubject(subject, request, sort);
+            printResult(result, " ");
+            _browseSubject = false;
+        }
     }
 
     /**
@@ -182,12 +376,12 @@ public class ControlCenter {
         }
         else
         {
-            int result = mLibraryManager.addInventory(line);
+            int result = _libraryManager.addInventory(line);
 
             String noBook = "There is no book with that ISBN, " +
                             "try a different ISBN or use addBook to add information about this book.";
             printResult(result, noBook);
-            mInventory = false;
+            _inventory = false;
         }
 
     }
@@ -197,7 +391,7 @@ public class ControlCenter {
      */
     private void getUserStats(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length != 2)
         {
@@ -207,9 +401,9 @@ public class ControlCenter {
         {
             int count = (int) Double.parseDouble(params[0]);
             String request = params[1];
-            int result = mLibraryManager.userStatistics((count = count < 1 ? 10 : count), request);
+            int result = _libraryManager.userStatistics((count = count < 1 ? 10 : count), request);
             printResult(result, " ");
-            mUserStats = false;
+            _userStats = false;
         }
     }
 
@@ -218,7 +412,7 @@ public class ControlCenter {
      */
     private void getBookStats(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length != 2)
         {
@@ -228,9 +422,9 @@ public class ControlCenter {
         {
             int count = (int) Double.parseDouble(params[0]);
             String request = params[1];
-            int result = mLibraryManager.bookStatistics((count = count < 1 ? 10 : count), request);
+            int result = _libraryManager.bookStatistics((count = count < 1 ? 10 : count), request);
             printResult(result, " ");
-            mBookStats = false;
+            _bookStats = false;
         }
     }
 
@@ -247,9 +441,9 @@ public class ControlCenter {
     private void lateBookList(String line)
     {
         java.sql.Date date = java.sql.Date.valueOf(line);
-        int result = mLibraryManager.lateBooks(date);
+        int result = _libraryManager.lateBooks(date);
         printResult(result," ");
-        mLateBookList = false;
+        _lateBookList = false;
     }
 
     /**
@@ -257,9 +451,9 @@ public class ControlCenter {
      */
     private void addReview(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
-        if(params.length != 5)
+        if(params.length != 4)
         {
             System.out.println("Cannot complete query, you have an incorrect number of parameters.");
         }
@@ -267,17 +461,16 @@ public class ControlCenter {
         {
             String isbn = params[0];
             String username = params[1];
-            String userID = params[2];
-            String score = params[3];
-            String reviewText = params[4];
+            String score = params[2];
+            String reviewText = params[3];
 
             double rating = Double.parseDouble(score);
             if(rating >= 1 || rating <= 10)
             {
-                int result = mLibraryManager.addReview(isbn, username, userID, score, reviewText);
+                int result = _libraryManager.addReview(isbn, username, score, reviewText);
                 String duplicate = "You have already left a review for this book.";
                 printResult(result, duplicate);
-                mReview = false;
+                _review = false;
             }
             else
             {
@@ -291,7 +484,7 @@ public class ControlCenter {
      */
     private void checkBookOut(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length != 2)
         {
@@ -302,7 +495,7 @@ public class ControlCenter {
             String isbn = params[0];
             String username = params[1];
 
-            int result = mLibraryManager.checkout(isbn, username);
+            int result = _libraryManager.checkout(isbn, username);
 
             String duplicate = "You are either already on the wait list for " +
                                "this book or currently have it checked out";
@@ -313,13 +506,13 @@ public class ControlCenter {
             else
                 printResult(result, duplicate);
 
-            mCheckout = false;
+            _checkout = false;
         }
     }
 
     private void checkBookIn(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length != 3)
         {
@@ -331,9 +524,9 @@ public class ControlCenter {
             String username = params[1];
             int status = Integer.parseInt(params[2]);
 
-            int result = mLibraryManager.checkin(isbn, username, status);
-
-            // TODO
+            int result = _libraryManager.checkin(isbn, username, status);
+            printResult(result, "");
+            _checkIn = false;
         }
     }
 
@@ -343,7 +536,7 @@ public class ControlCenter {
      */
     private void addNewBook(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length != 8)
         {
@@ -360,18 +553,18 @@ public class ControlCenter {
             String format = params[6];
             String summary = params[7];
 
-            int result = mLibraryManager.addBook(isbn, title, author,
+            int result = _libraryManager.addBook(isbn, title, author,
                     subject, publisher, pubYear, format, summary);
 
             String duplicate = "A book with that isbn already exists.";
             printResult(result, duplicate);
-            mNewBook = false;
+            _newBook = false;
         }
     }
 
     private void getUserRecord(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length < 2)
         {
@@ -382,15 +575,15 @@ public class ControlCenter {
             String username = params[0];
             String request = params[1];
 
-            int result = mLibraryManager.userRecord(username, request);
+            int result = _libraryManager.userRecord(username, request);
             printResult(result, "");
-            mUserRecord = false;
+            _userRecord = false;
         }
     }
 
     private void getBookRecord(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length < 2)
         {
@@ -406,7 +599,7 @@ public class ControlCenter {
      */
     private void browseBooks(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length == 6)
         {
@@ -432,7 +625,7 @@ public class ControlCenter {
                 titleWords = titleWords.length() > 0 ? '%' + titleWords + '%' : titleWords;
                 subject = subject.length() > 0 ? '%' + subject + '%' : subject;
 
-                int result = mLibraryManager.browseLibrary(authors, publisher, titleWords, subject, sort,status);
+                int result = _libraryManager.browseLibrary(authors, publisher, titleWords, subject, sort,status);
             }
         }
         else
@@ -447,7 +640,7 @@ public class ControlCenter {
      */
     private void registerUser(String line)
     {
-        String[] params = line.split(mDelimiter);
+        String[] params = line.split(_delimiter);
 
         if(params.length != 5)
         {
@@ -464,16 +657,16 @@ public class ControlCenter {
             if(phone.length() > 1)
                 phone = phone.replaceAll("([-()+])+","");
 
-            int result = mLibraryManager.addUser(username, address, name, phone, email);
+            int result = _libraryManager.addUser(username, address, name, phone, email);
 
             String duplicate = "That username already exists, please try another.";
             printResult(result, duplicate);
-            mRegister = false;
+            _register = false;
         }
     }
 
     /**
-     * TODO: Implement, print a message of success or failure
+     * Prints a message based on what the result was.
      */
     private void printResult(int result, String duplicate)
     {
@@ -487,26 +680,33 @@ public class ControlCenter {
 
     private String displayHelp()
     {
-        String helpOptions = "command\t\t\tParameters, (r) indicates required field, " +
-                "separate parameters with a " + mDelimiter + "character, leave blank " +
-                "space between " + mDelimiter + "s for no value \n" +
+        return "command\t\t\tParameters, (r) indicates required field, " +
+                "separate parameters with a " + _delimiter + "character, leave blank " +
+                "space between " + _delimiter + "s for no value \n" +
+                "browse\t\t\tauthor,publisher,title-words,subject,sort[](r),status[](r)\n" +
                 "register\t\tusername(r),address(r),full name(r),phone number,e-mail address\n" +
                 "add book\t\tisbn(r),title,author,subject,publisher,publish year,format,summary\n" +
                 "inventory\t\tisbn(r)\n" +
                 "checkout\t\tisbn(r),username(r)\n" +
                 "checkin\t\t\tisbn(r),username(r),status(-1 for lost, 1 for returning)\n" +
                 "late books\t\t\tdate(r) in the format of YYYY-MM-DD\n" +
-                "user record\t\tusername(r),request(r) valid requests: personal data,checkedout books," +
+                "review\t\t\tisbn(r),username(r),score(r),review text" +
+                "book stats\t\t\tOne of: most checkedout,most requested,most author,most lost" +
+                "user stats\t\t\tOne of: most checkedout,most reviews,most lost\n" +
+                "book record\t\tOne of: book data,book copies,book users,book reviews\n" +
+                "user record\t\tusername(r),request(r) valid requests: personal data,checkedout books\n" +
                 "lost books,requested books,reviewed books\n" +
                 "exit\t\t\tLog out of the system\n";
-
-        return helpOptions;
     }
 
     public static void main(String[] args)
     {
         ControlCenter controlCenter = new ControlCenter();
         Scanner scanner = new Scanner(System.in);
+        System.out.println ("Welcome to the CS5530 Library!\n" +
+                "Type in a command and press enter. " +
+                "To see a list of commands and parameters, type help");
         controlCenter.parseInput(scanner);
+        DatabaseSingleton.getInstance().close();
     }
 }
