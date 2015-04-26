@@ -8,4 +8,5 @@ public class Constant
     public static final String FAIL = "Query failed";
     public static final String BAD_REQUEST = "Invalid syntax";
     public static final String NO_MATCH = "No matching records";
+    public static final String TAB = "/t/t/t";
 }

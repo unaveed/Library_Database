@@ -177,7 +177,7 @@ public class LibraryManager implements LibraryInterface {
         {
             String query = "update inventory set availability=? where isbn=? and book_no=?";
             PreparedStatement update = connection.prepareStatement(query);
-
+            Statement stat = connection.createStatement();
             update.setInt(1, status);
             update.setString(2, isbn);
             update.setInt(3, bookNumber);

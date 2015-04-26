@@ -6,12 +6,11 @@ import java.sql.DriverManager;
  */
 public final class DatabaseSingleton
 {
-    private Connection _connection;
-    private static DatabaseSingleton _database;
+    private static Connection _connection = null;
+    private static DatabaseSingleton _database = null;
 
     private DatabaseSingleton()
     {
-        _connection = null;
         try
         {
             connect();
@@ -32,14 +31,17 @@ public final class DatabaseSingleton
         final String url = "jdbc:mysql://georgia.eng.utah.edu/cs5530db26";
 
         Class.forName ("com.mysql.jdbc.Driver").newInstance ();
-        _connection = DriverManager.getConnection(url, username, password);
+
+        if(_connection == null)
+            _connection = DriverManager.getConnection(url, username, password);
     }
 
     public static synchronized DatabaseSingleton getInstance()
     {
         if(_database == null)
-            return new DatabaseSingleton();
+            _database = new DatabaseSingleton();
 
+        System.out.println(_database);
         return _database;
     }
 

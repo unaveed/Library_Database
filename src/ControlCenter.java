@@ -1,3 +1,4 @@
+import java.sql.Connection;
 import java.util.Scanner;
 
 public class ControlCenter {
@@ -27,7 +28,9 @@ public class ControlCenter {
 
     private String _delimiter;
 
-    LibraryManager _libraryManager;
+    private DatabaseSingleton _database;
+    private Connection _connection;
+    private LibraryManager _libraryManager;
 
     public ControlCenter()
         {
@@ -55,6 +58,9 @@ public class ControlCenter {
 
             _delimiter = Constant.DELIMITER;
             _libraryManager = new LibraryManager();
+
+            _database = DatabaseSingleton.getInstance();
+            _connection = _database.getConnection();
     }
 
     private void parseInput(Scanner scanner)
@@ -62,70 +68,74 @@ public class ControlCenter {
         while(scanner.hasNext())
         {
             String input = scanner.nextLine();
-            Library library;
-            Book book;
-            User user;
+            Library library = new Library(_connection);
+            Book book = new Book(_connection);
+            User user = new User(_connection);
+            Result result;
 
             if(_browse)
             {
-                library = new Library(input);
                 System.out.println(library.browse().toString());
                 _browse = false;
                 continue;
             }
             else if(_register)
             {
-                user = new User(input);
-                System.out.println(user.register().toString());
                 _register = false;
                 continue;
             }
             else if (_newBook)
             {
-                book = new Book(input);
-                System.out.println(book.addBook().toString());
+                String[] params = input.split(Constant.DELIMITER);
+                System.out.println(book.addBook(params[0],params[1],params[2],
+                        params[3],params[4],params[5],params[6],params[7]));
                 _newBook = false;
                 continue;
             }
             else if (_inventory)
             {
-                library = new Library(input);
-                System.out.println(library.addInventory().toString());
+                String[] params = input.split(Constant.DELIMITER);
+                System.out.println(library.addInventory(params[0], Integer.parseInt(params[1])).toString());
                 _inventory = false;
                 continue;
             }
             else if(_checkout)
             {
-                library = new Library(input);
-                System.out.println(library.checkOut().toString());
+                String[] params = input.split(Constant.DELIMITER);
+                System.out.println(library.checkOut(params[0], params[1]));
                 _checkout = false;
                 continue;
             }
             else if(_checkIn)
             {
-                library = new Library(input);
-                System.out.println(library.checkIn().toString());
+                String[] params = input.split(Constant.DELIMITER);
+                System.out.println(library.checkIn(params[0], params[1],
+                        Library.Status.valueOf(params[2])));
                 _checkIn = false;
                 continue;
             }
             else if(_waitList)
             {
-                library = new Library(input);
-                System.out.println(library.joinWaitList().toString());
+                String[] params = input.split(Constant.DELIMITER);
+                System.out.println(library.joinWaitList(params[0],params[1]));
                 _waitList = false;
                 continue;
             }
             else if(_lateBookList)
             {
-                library = new Library(input);
-                System.out.println(library.getLateBookList().toString());
+                java.sql.Date date = java.sql.Date.valueOf(input);
+                result = library.getLateBookList(date);
+
+                if(result.isValid())
+                    System.out.println(result.toString());
+
                 _lateBookList = false;
                 continue;
             }
             else if(_review)
             {
-                book = new Book(input);
-                System.out.println(book.addReview().toString());
+                String[] params = input.split(Constant.DELIMITER);
+                System.out.println(book.addReview(params[0],params[1],params[2],params[3]));
                 _review = false;
                 continue;
             }
@@ -141,12 +151,15 @@ public class ControlCenter {
             }
             else if(_bookRecord)
             {
-                getBookRecord(input);
+                System.out.println(book.bookRecord(input));
+                _bookRecord = false;
                 continue;
             }
             else if(_bookStats)
             {
-                getBookStats(input);
+                int count = Integer.parseInt(input);
+                System.out.println(book.getMostCheckedOut(count));
+                _bookStats = false;
                 continue;
             }
             else if(_userStats)
@@ -368,27 +381,6 @@ public class ControlCenter {
     /**
      * TODO: Implement
      */
-    private void addBookInventory(String line)
-    {
-        if(line.equals("") || line == null)
-        {
-            System.out.println("You must enter a valid ISBN number.");
-        }
-        else
-        {
-            int result = _libraryManager.addInventory(line);
-
-            String noBook = "There is no book with that ISBN, " +
-                            "try a different ISBN or use addBook to add information about this book.";
-            printResult(result, noBook);
-            _inventory = false;
-        }
-
-    }
-
-    /**
-     * TODO: Implement
-     */
     private void getUserStats(String line)
     {
         String[] params = line.split(_delimiter);
@@ -433,17 +425,6 @@ public class ControlCenter {
      */
     private void getBookInformation(String line)
     {
-    }
-
-    /**
-     * TODO: Implement
-     */
-    private void lateBookList(String line)
-    {
-        java.sql.Date date = java.sql.Date.valueOf(line);
-        int result = _libraryManager.lateBooks(date);
-        printResult(result," ");
-        _lateBookList = false;
     }
 
     /**
@@ -699,14 +680,24 @@ public class ControlCenter {
                 "exit\t\t\tLog out of the system\n";
     }
 
+    public void displayCommands()
+    {
+        int line = 0;
+        String[] commands = {"Register user", "Browse books", "Check out", "Return book", "Wait list",
+                             "Last books", "Add book", "Add review", "Add inventory", "Book record",
+                             "User record", "Book stats", "User stats"};
+
+        System.out.println("Code\t\tDescription");
+        for(int i = 0; i < commands.length; i++)
+            System.out.println(line++ + "\t\t\t" + commands[i]);
+    }
+
     public static void main(String[] args)
     {
         ControlCenter controlCenter = new ControlCenter();
+        controlCenter.displayCommands();
         Scanner scanner = new Scanner(System.in);
-        System.out.println ("Welcome to the CS5530 Library!\n" +
-                "Type in a command and press enter. " +
-                "To see a list of commands and parameters, type help");
         controlCenter.parseInput(scanner);
-        DatabaseSingleton.getInstance().close();
+        controlCenter._database.close();
     }
 }
